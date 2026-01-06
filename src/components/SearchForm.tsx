@@ -28,13 +28,13 @@ const DENOMINATIONS = [
   "Episcopal",
   "Assembly of God",
   "Non-denominational",
-  "Other"
+  "Other",
 ];
 
 const SIZES = [
   { value: "small", label: "Small (Under 100 members)" },
-  { value: "medium", label: "Medium (100-500 members)" },
-  { value: "large", label: "Large (Over 500 members)" }
+  { value: "medium", label: "Medium (100–500 members)" },
+  { value: "large", label: "Large (Over 500 members)" },
 ];
 
 const LOCATIONS = [
@@ -43,7 +43,7 @@ const LOCATIONS = [
   "Pleasant Gap",
   "Boalsburg",
   "Lemont",
-  "Pine Grove Mills"
+  "Pine Grove Mills",
 ];
 
 interface SearchFormProps {
@@ -52,11 +52,18 @@ interface SearchFormProps {
   setIsSearching: (value: boolean) => void;
 }
 
-const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) => {
-  const [denomination, setDenomination] = useState("No preference / Not sure");
+const SearchForm = ({
+  onSearch,
+  isSearching,
+  setIsSearching,
+}: SearchFormProps) => {
+  const [denomination_,
+  setDenomination] = useState("No preference / Not sure");
   const [size, setSize] = useState("");
   const [location, setLocation] = useState("");
   const [additionalInfo, setAdditionalInfo] = useState("");
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,9 +71,9 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
 
     if (!size || !location) {
       toast({
-        title: "Missing Information",
-        description: "Please select a church size and a location.",
-        variant: "destructive"
+        title: "Missing information",
+        description: "Please select a church size and location.",
+        variant: "destructive",
       });
       return;
     }
@@ -75,74 +82,58 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
     setErrorBanner(null);
 
     try {
-      // Fetch all churches from database
       const { data: churches, error: churchError } = await supabase
-        .from('churches')
-        .select('*');
+        .from("churches")
+        .select("*");
 
       if (churchError) throw churchError;
 
-      // Call the AI matching function
-      const { data: matchData, error: matchError } = await supabase.functions.invoke(
-        'match-church',
-        {
+      const { data: matchData, error: matchError } =
+        await supabase.functions.invoke("match-church", {
           body: {
-            denomination: denomination || "No preference / Not sure",
+            denomination: denomination_,
             size,
             location,
             additionalInfo,
-            churches
-          }
-        }
-      );
+            churches,
+          },
+        });
 
       if (matchError) throw matchError;
 
-      // Map the church IDs to full church objects
-      const bestMatch = churches?.find(c => c.id === matchData.bestMatch.churchId);
-      const runnerUps = matchData.runnerUps.map((ru: any) => 
-        churches?.find(c => c.id === ru.churchId)
-      ).filter(Boolean);
+      const bestMatch = churches?.find(
+        (c) => c.id === matchData.bestMatch.churchId
+      );
+
+      const runnerUps = matchData.runnerUps
+        .map((ru: any) =>
+          churches?.find((c) => c.id === ru.churchId)
+        )
+        .filter(Boolean);
 
       if (bestMatch) {
         onSearch({
           bestMatch: {
             ...bestMatch,
-            reason: matchData.bestMatch.reason
+            reason: matchData.bestMatch.reason,
           },
           runnerUps: runnerUps.map((church: any, idx: number) => ({
             ...church,
-            reason: matchData.runnerUps[idx]?.reason || ""
-          }))
+            reason: matchData.runnerUps[idx]?.reason || "",
+          })),
         });
       }
-
     } catch (error: any) {
       console.error("Search error:", error);
 
-      const message = (error?.message || "").toString().toLowerCase();
-      const isAiFailure =
-        message.includes("openai") ||
-        message.includes("match") ||
-        message.includes("edge") ||
-        message.includes("function") ||
-        message.includes("timeout") ||
-        message.includes("rate") ||
-        message.includes("429") ||
-        message.includes("503") ||
-        message.includes("500");
-
-      const bannerText = isAiFailure
-        ? "Our church matcher is having trouble right now, so we couldn’t generate recommendations. Nothing was saved. Please try again in a minute — or browse churches instead."
-        : "Something went wrong while searching. Please try again — or browse churches instead.";
-
-      setErrorBanner(bannerText);
+      setErrorBanner(
+        "Our church matcher is having trouble right now. Nothing was saved. Please try again in a minute — or browse churches instead."
+      );
 
       toast({
-        title: isAiFailure ? "We couldn’t generate matches right now" : "Search failed",
-        description: isAiFailure
-          ? "The AI matcher is temporarily unavailable. Please try again soon."
-          : "Please try again.",
+        title: "We couldn’t generate matches right now",
+        description:
+          "The AI matcher is temporarily unavailable. Please try again soon.",
         variant: "destructive",
       });
     } finally {
@@ -152,18 +143,42 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
 
   return (
     <Card className="shadow-card border-border/50">
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 space-y-4">
+        {errorBanner && (
+          <Alert variant="destructive">
+            <AlertTitle>We couldn’t generate matches right now</AlertTitle>
+            <AlertDescription>
+              <p className="text-sm">{errorBanner}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link to="/churches">
+                  <Button type="button" variant="outline" size="sm">
+                    Browse churches
+                  </Button>
+                </Link>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setErrorBanner(null)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="denomination">Denomination (Optional)</Label>
-            <Select value={denomination} onValueChange={setDenomination}>
-              <SelectTrigger id="denomination">
-                <SelectValue placeholder="No preference / not sure" />
+            <Label>Denomination (Optional)</Label>
+            <Select value={denomination_} onValueChange={setDenomination}>
+              <SelectTrigger>
+                <SelectValue placeholder="No preference / Not sure" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                {DENOMINATIONS.map((denom) => (
-                  <SelectItem key={denom} value={denom}>
-                    {denom}
+              <SelectContent>
+                {DENOMINATIONS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -171,12 +186,12 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="size">Church Size *</Label>
+            <Label>Church Size *</Label>
             <Select value={size} onValueChange={setSize}>
-              <SelectTrigger id="size">
+              <SelectTrigger>
                 <SelectValue placeholder="Select church size" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
+              <SelectContent>
                 {SIZES.map((s) => (
                   <SelectItem key={s.value} value={s.value}>
                     {s.label}
@@ -187,15 +202,15 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location">Location *</Label>
+            <Label>Location *</Label>
             <Select value={location} onValueChange={setLocation}>
-              <SelectTrigger id="location">
-                <SelectValue placeholder="Select a location" />
+              <SelectTrigger>
+                <SelectValue placeholder="Select location" />
               </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                {LOCATIONS.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    {loc}
+              <SelectContent>
+                {LOCATIONS.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {l}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -203,29 +218,19 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="additionalInfo">
-              Additional Information (Optional)
-            </Label>
+            <Label>Additional Information (Optional)</Label>
             <Textarea
-              id="additionalInfo"
-              placeholder="Tell us more about what you're looking for in a church..."
               value={additionalInfo}
               onChange={(e) => setAdditionalInfo(e.target.value)}
               rows={4}
-              className="resize-none"
             />
           </div>
 
-          <Button
-            type="submit"
-            disabled={isSearching}
-            className="w-full bg-gradient-spiritual hover:opacity-90 transition-smooth"
-            size="lg"
-          >
+          <Button type="submit" disabled={isSearching} size="lg" className="w-full">
             {isSearching ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Searching...
+                Searching…
               </>
             ) : (
               <>
@@ -240,23 +245,4 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
   );
 };
 
-export default SearchForm{errorBanner && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTitle>We couldn’t generate matches right now</AlertTitle>
-            <AlertDescription>
-              <p className="text-sm">{errorBanner}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link to="/churches">
-                  <Button type="button" variant="outline" size="sm">
-                    Browse churches
-                  </Button>
-                </Link>
-                <Button type="button" variant="secondary" size="sm" onClick={() => setErrorBanner(null)}>
-                  Dismiss
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        ;
+export default SearchForm;
