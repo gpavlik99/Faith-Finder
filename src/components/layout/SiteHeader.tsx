@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
-import { ChurchIcon } from "lucide-react";
+import { ChurchIcon, Settings as SettingsIcon } from "lucide-react";
 
 const linkBase =
   "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors";
@@ -52,9 +52,21 @@ export default function SiteHeader() {
           >
             Contact
           </NavLink>
+          <NavLink
+            to="/settings"
+            className={linkBase}
+            activeClassName="text-foreground"
+          >
+            Settings
+          </NavLink>
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link to="/settings" className="hidden md:block">
+            <Button variant="ghost" size="icon" aria-label="Settings">
+              <SettingsIcon className="h-5 w-5" />
+            </Button>
+          </Link>
           <Link to="/auth" className="hidden md:block">
             <Button variant="ghost">Sign In</Button>
           </Link>

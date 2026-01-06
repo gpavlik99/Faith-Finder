@@ -15,36 +15,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
 import { Search, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import { useToast } from "@/hooks/use-toast";
 import type { MatchResults } from "@/types/match";
 
-const DENOMINATIONS = [
-  "No preference / Not sure",
-  "Baptist",
-  "Catholic",
-  "Lutheran",
-  "Methodist",
-  "Presbyterian",
-  "Episcopal",
-  "Assembly of God",
-  "Non-denominational",
-  "Other",
-];
+import { DENOMINATIONS, SIZES_REQUIRED, LOCATIONS } from "@/lib/options";
 
-const SIZES = [
-  { value: "small", label: "Small (Under 100 members)" },
-  { value: "medium", label: "Medium (100–500 members)" },
-  { value: "large", label: "Large (Over 500 members)" },
-];
-
-const LOCATIONS = [
-  "State College",
-  "Bellefonte",
-  "Pleasant Gap",
-  "Boalsburg",
-  "Lemont",
-  "Pine Grove Mills",
-];
 
 interface SearchFormProps {
   onSearch: (results: MatchResults) => void;
@@ -57,10 +33,13 @@ const SearchForm = ({
   isSearching,
   setIsSearching,
 }: SearchFormProps) => {
-  const [denomination_,
-  setDenomination] = useState("No preference / Not sure");
-  const [size, setSize] = useState("");
-  const [location, setLocation] = useState("");
+  const { settings } = useUserSettings();
+
+  const [denomination_, setDenomination] = useState(
+    settings.defaultDenomination || "No preference / Not sure"
+  );
+  const [size, setSize] = useState(settings.defaultSize || "");
+  const [location, setLocation] = useState(settings.defaultLocation || "");
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
@@ -192,7 +171,7 @@ const SearchForm = ({
                 <SelectValue placeholder="Select church size" />
               </SelectTrigger>
               <SelectContent>
-                {SIZES.map((s) => (
+                {SIZES_REQUIRED.map((s) => (
                   <SelectItem key={s.value} value={s.value}>
                     {s.label}
                   </SelectItem>
