@@ -52,19 +52,19 @@ const HELP_TEXT: Record<
   size: {
     label: "Church size",
     description:
-      "Size often affects what the experience feels like — from the worship setting to how easy it is to meet people. We use this to find communities that match your comfort level.",
+      "Size often shapes the overall feel of a community — from worship style to how easy it is to connect. This helps us suggest churches that match your comfort level.",
     required: true,
   },
   location: {
     label: "Location",
     description:
-      "We focus on churches in and around State College. Location helps us recommend options that are realistically convenient so it’s easier to visit and stay connected.",
+      "Location helps ensure recommendations are practical and easy to visit. We focus on churches in and around State College.",
     required: true,
   },
   additional: {
     label: "Additional information",
     description:
-      "Share anything that matters right now (kids programs, service opportunities, accessibility needs, campus ministry, worship style, etc.). This helps the recommendations feel more personal and specific.",
+      "Share anything that matters to you right now (kids programs, accessibility needs, worship style, service opportunities, campus ministry, etc.).",
   },
 };
 
@@ -76,12 +76,7 @@ function FieldLabel({ help, htmlFor }: { help: FieldHelp; htmlFor?: string }) {
           {help.label}
         </Label>
         {help.required ? (
-          <span
-            className="text-sm font-semibold text-destructive"
-            aria-hidden="true"
-          >
-            *
-          </span>
+          <span className="text-sm font-semibold text-destructive">*</span>
         ) : (
           <span className="text-xs text-muted-foreground">Optional</span>
         )}
@@ -92,14 +87,14 @@ function FieldLabel({ help, htmlFor }: { help: FieldHelp; htmlFor?: string }) {
           <button
             type="button"
             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`More info about ${help.label}`}
+            aria-label={`Why we ask about ${help.label}`}
           >
             <Info className="h-4 w-4" />
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" align="end" className="max-w-sm">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">Why we ask</div>
+            <div className="text-sm font-semibold text-foreground">Why this helps</div>
             <div className="text-sm text-muted-foreground">
               {help.description}
             </div>
@@ -123,21 +118,10 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
 
   const { toast } = useToast();
 
-  // IDs help with accessibility + testing; Radix Select doesn't fully bind label->trigger,
-  // but this keeps things consistent and future-proof.
-  const denominationId = useMemo(
-    () => `denomination-${Math.random().toString(36).slice(2)}`,
-    []
-  );
-  const sizeId = useMemo(() => `size-${Math.random().toString(36).slice(2)}`, []);
-  const locationId = useMemo(
-    () => `location-${Math.random().toString(36).slice(2)}`,
-    []
-  );
-  const additionalId = useMemo(
-    () => `additional-${Math.random().toString(36).slice(2)}`,
-    []
-  );
+  const denominationId = useMemo(() => `denom-${crypto.randomUUID()}`, []);
+  const sizeId = useMemo(() => `size-${crypto.randomUUID()}`, []);
+  const locationId = useMemo(() => `loc-${crypto.randomUUID()}`, []);
+  const additionalId = useMemo(() => `add-${crypto.randomUUID()}`, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,12 +182,12 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
       console.error("Search error:", error);
 
       setErrorBanner(
-        "Our church matcher is having trouble right now. Nothing was saved. Please try again in a minute — or browse churches instead."
+        "We’re having trouble generating recommendations right now. Nothing was saved."
       );
 
       toast({
-        title: "We couldn’t generate matches right now",
-        description: "The AI matcher is temporarily unavailable. Please try again soon.",
+        title: "Matcher temporarily unavailable",
+        description: "Please try again in a minute or browse churches instead.",
         variant: "destructive",
       });
     } finally {
@@ -215,27 +199,25 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
     <TooltipProvider>
       <Card className="border-border/60 shadow-card">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-xl">Answer a few quick questions</CardTitle>
+          <CardTitle className="text-xl">Find a church that fits you</CardTitle>
           <p className="text-sm text-muted-foreground">
-            We’ll use these details to generate explainable church recommendations.
-            Required fields are marked with *.
+            Answer a few short questions. You can tap the ⓘ icons to see why we ask each one.
           </p>
         </CardHeader>
 
         <CardContent className="space-y-6">
           {errorBanner && (
             <Alert variant="destructive">
-              <AlertTitle>We couldn’t generate matches right now</AlertTitle>
+              <AlertTitle>Something went wrong</AlertTitle>
               <AlertDescription>
                 <p className="text-sm">{errorBanner}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex gap-2">
                   <Link to="/churches">
-                    <Button type="button" variant="outline" size="sm">
+                    <Button variant="outline" size="sm">
                       Browse churches
                     </Button>
                   </Link>
                   <Button
-                    type="button"
                     variant="secondary"
                     size="sm"
                     onClick={() => setErrorBanner(null)}
@@ -248,7 +230,7 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4 md:p-5">
+            <div className="rounded-xl border border-border/60 bg-card/40 p-5">
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
                   <FieldLabel help={HELP_TEXT.denomination} htmlFor={denominationId} />
@@ -305,13 +287,9 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
                     value={additionalInfo}
                     onChange={(e) => setAdditionalInfo(e.target.value)}
                     rows={4}
-                    placeholder="Anything you want the matcher to know?"
                     className="resize-none"
+                    placeholder="Anything else you’d like us to consider?"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Tip: Add specifics like “welcoming to newcomers,” “strong kids ministry,”
-                    “service opportunities,” or “more traditional worship.”
-                  </p>
                 </div>
               </div>
             </div>
@@ -320,22 +298,15 @@ const SearchForm = ({ onSearch, isSearching, setIsSearching }: SearchFormProps) 
               {isSearching ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Searching…
+                  Finding matches…
                 </>
               ) : (
                 <>
                   <Search className="mr-2 h-5 w-5" />
-                  Find My Church
+                  See recommendations
                 </>
               )}
             </Button>
-
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <span>Prefer to explore on your own?</span>
-              <Link to="/churches" className="text-primary hover:underline">
-                Browse all churches
-              </Link>
-            </div>
           </form>
         </CardContent>
       </Card>
