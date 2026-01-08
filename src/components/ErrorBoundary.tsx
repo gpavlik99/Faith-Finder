@@ -31,7 +31,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div style={{ padding: 24, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Faith Finder couldn’t load</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>FaithGuide couldn’t load</h1>
           <p style={{ marginBottom: 12, maxWidth: 720 }}>
             Something went wrong while the app was starting. This is usually caused by a missing
             environment variable or a browser storage/privacy setting.
@@ -41,7 +41,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             <pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{this.state.message}</pre>
           </div>
           <p style={{ marginTop: 12, fontSize: 12, opacity: 0.8 }}>
-            Tip: Check Vercel Environment Variables for <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
+            Tip: Check Vercel Environment Variables for <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.
           </p>
         </div>
       );
