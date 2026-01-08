@@ -1,10 +1,16 @@
 import PageLayout from "@/components/layout/PageLayout";
+import Seo from "@/components/Seo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Users, MapPin, ShieldCheck } from "lucide-react";
 
 export default function AboutUs() {
   return (
     <PageLayout>
+      <Seo
+        title="How It Works"
+        path="/about"
+        description="Learn how Faith Compass helps you find a church in State College, PA using thoughtful questions and transparent explanations."
+      />
       <div className="bg-gradient-hero py-16">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">How It Works</h1>
