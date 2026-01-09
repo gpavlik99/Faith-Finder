@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -29,17 +29,22 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
   const [priorities, setPriorities] = useState<string[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState("");
 
+  // Auto-set distance to 25 miles when Centre County is chosen
+  useEffect(() => {
+    if (location === "Centre County") {
+      setDistance("25");
+    }
+  }, [location]);
+
   const togglePriority = (value: string) => {
     setPriorities((prev) =>
-      prev.includes(value)
-        ? prev.filter((p) => p !== value)
-        : [...prev, value],
+      prev.includes(value) ? prev.filter((p) => p !== value) : [...prev, value],
     );
   };
 
   const handleSubmit = () => {
     onSearch({
-      denomination,
+      denomination: denomination === "no-preference" ? "" : denomination,
       size,
       worshipStyle,
       location,
@@ -110,25 +115,19 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             <SelectValue placeholder="Select a location" />
           </SelectTrigger>
           <SelectContent>
-            {/* NEW: Centre County option */}
-            <SelectItem value="Centre County">
-              Centre County, PA
-            </SelectItem>
-
-            <SelectItem value="State College">
-              State College, PA
-            </SelectItem>
-            <SelectItem value="Bellefonte">
-              Bellefonte, PA
-            </SelectItem>
-            <SelectItem value="Boalsburg">
-              Boalsburg, PA
-            </SelectItem>
-            <SelectItem value="Penns Valley">
-              Penns Valley, PA
-            </SelectItem>
+            <SelectItem value="Centre County">Centre County, PA</SelectItem>
+            <SelectItem value="State College">State College, PA</SelectItem>
+            <SelectItem value="Bellefonte">Bellefonte, PA</SelectItem>
+            <SelectItem value="Boalsburg">Boalsburg, PA</SelectItem>
+            <SelectItem value="Penns Valley">Penns Valley, PA</SelectItem>
           </SelectContent>
         </Select>
+
+        {location === "Centre County" ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            We’ll search across all of Centre County.
+          </p>
+        ) : null}
       </div>
 
       {/* Distance */}
@@ -146,6 +145,13 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             ))}
           </SelectContent>
         </Select>
+
+        {location === "Centre County" ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Distance is set to <span className="font-medium">25 miles</span>{" "}
+            for county-wide matching.
+          </p>
+        ) : null}
       </div>
 
       {/* Priorities */}
