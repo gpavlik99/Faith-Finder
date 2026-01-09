@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -13,6 +13,7 @@ import {
   WORSHIP_STYLES,
   DISTANCE_OPTIONS_MILES,
   PRIORITY_OPTIONS,
+  NO_PREFERENCE_VALUE,
 } from "@/lib/options";
 
 type Props = {
@@ -20,12 +21,30 @@ type Props = {
   isSearching: boolean;
 };
 
+function FieldBlock(props: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-4 shadow-sm">
+      <div className="space-y-1">
+        <div className="text-sm font-semibold">{props.title}</div>
+        {props.description ? (
+          <div className="text-sm text-muted-foreground">{props.description}</div>
+        ) : null}
+      </div>
+      <div className="mt-3">{props.children}</div>
+    </div>
+  );
+}
+
 export default function SearchForm({ onSearch, isSearching }: Props) {
-  const [denomination, setDenomination] = useState("");
+  const [denomination, setDenomination] = useState(NO_PREFERENCE_VALUE);
   const [size, setSize] = useState("");
-  const [worshipStyle, setWorshipStyle] = useState("");
+  const [worshipStyle, setWorshipStyle] = useState(NO_PREFERENCE_VALUE);
   const [location, setLocation] = useState("Centre County");
-  const [distance, setDistance] = useState("");
+  const [distance, setDistance] = useState(NO_PREFERENCE_VALUE);
   const [priorities, setPriorities] = useState<string[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState("");
 
@@ -33,8 +52,16 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
   useEffect(() => {
     if (location === "Centre County") {
       setDistance("25");
+    } else {
+      // If user moves away from Centre County and distance was auto-set, default back to "No preference"
+      if (distance === "25") setDistance(NO_PREFERENCE_VALUE);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
+
+  const isSubmitDisabled = useMemo(() => {
+    return isSearching || !size || !location;
+  }, [isSearching, size, location]);
 
   const togglePriority = (value: string) => {
     setPriorities((prev) =>
@@ -44,38 +71,40 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
 
   const handleSubmit = () => {
     onSearch({
-      denomination: denomination === "no-preference" ? "" : denomination,
+      denomination: denomination === NO_PREFERENCE_VALUE ? "" : denomination,
       size,
-      worshipStyle,
+      worshipStyle: worshipStyle === NO_PREFERENCE_VALUE ? "" : worshipStyle,
       location,
-      distance,
+      distance: distance === NO_PREFERENCE_VALUE ? "" : distance,
       priorities,
       additionalInfo,
     });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Denomination */}
-      <div>
-        <label className="font-medium">Denomination (optional)</label>
+    <div className="space-y-4">
+      <FieldBlock
+        title="Denomination (optional)"
+        description="Choose a tradition if it matters to you. Otherwise, leave it open."
+      >
         <Select value={denomination} onValueChange={setDenomination}>
           <SelectTrigger>
             <SelectValue placeholder="No preference" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="no-preference">No preference</SelectItem>
+            <SelectItem value={NO_PREFERENCE_VALUE}>No preference</SelectItem>
             <SelectItem value="Catholic">Catholic</SelectItem>
             <SelectItem value="Protestant">Protestant</SelectItem>
             <SelectItem value="Non-denominational">Non-denominational</SelectItem>
             <SelectItem value="Orthodox">Orthodox</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </FieldBlock>
 
-      {/* Church Size */}
-      <div>
-        <label className="font-medium">Church size</label>
+      <FieldBlock
+        title="Church size"
+        description="Pick the community size you’ll feel most comfortable in."
+      >
         <Select value={size} onValueChange={setSize}>
           <SelectTrigger>
             <SelectValue placeholder="Select a size" />
@@ -88,14 +117,15 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FieldBlock>
 
-      {/* Worship Style */}
-      <div>
-        <label className="font-medium">Worship style</label>
+      <FieldBlock
+        title="Worship style"
+        description="This helps match music, liturgy, and the overall feel."
+      >
         <Select value={worshipStyle} onValueChange={setWorshipStyle}>
           <SelectTrigger>
-            <SelectValue placeholder="Select a worship style" />
+            <SelectValue placeholder="No preference" />
           </SelectTrigger>
           <SelectContent>
             {WORSHIP_STYLES.map((w) => (
@@ -105,11 +135,12 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FieldBlock>
 
-      {/* Location */}
-      <div>
-        <label className="font-medium">Location</label>
+      <FieldBlock
+        title="Location"
+        description="Where should we search?"
+      >
         <Select value={location} onValueChange={setLocation}>
           <SelectTrigger>
             <SelectValue placeholder="Select a location" />
@@ -124,15 +155,16 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
         </Select>
 
         {location === "Centre County" ? (
-          <p className="mt-2 text-sm text-muted-foreground">
+          <div className="mt-2 text-sm text-muted-foreground">
             We’ll search across all of Centre County.
-          </p>
+          </div>
         ) : null}
-      </div>
+      </FieldBlock>
 
-      {/* Distance */}
-      <div>
-        <label className="font-medium">Distance (optional)</label>
+      <FieldBlock
+        title="Distance (optional)"
+        description="How far are you willing to travel?"
+      >
         <Select value={distance} onValueChange={setDistance}>
           <SelectTrigger>
             <SelectValue placeholder="No preference" />
@@ -147,53 +179,63 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
         </Select>
 
         {location === "Centre County" ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Distance is set to <span className="font-medium">25 miles</span>{" "}
-            for county-wide matching.
-          </p>
+          <div className="mt-2 text-sm text-muted-foreground">
+            Distance is set to <span className="font-medium">25 miles</span> for county-wide matching.
+          </div>
         ) : null}
-      </div>
+      </FieldBlock>
 
-      {/* Priorities */}
-      <div>
-        <label className="font-medium">Priorities (optional)</label>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {PRIORITY_OPTIONS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => togglePriority(p.value)}
-              className={`px-3 py-1 rounded-full border text-sm ${
-                priorities.includes(p.value)
-                  ? "bg-primary text-white"
-                  : "bg-background"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+      <FieldBlock
+        title="Priorities (optional)"
+        description="Pick what matters most to you (you can choose multiple)."
+      >
+        <div className="flex flex-wrap gap-2">
+          {PRIORITY_OPTIONS.map((p) => {
+            const selected = priorities.includes(p.value);
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => togglePriority(p.value)}
+                className={[
+                  "rounded-full border px-3 py-1 text-sm transition",
+                  selected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:bg-muted",
+                ].join(" ")}
+                aria-pressed={selected}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </FieldBlock>
 
-      {/* Anything else */}
-      <div>
-        <label className="font-medium">
-          Anything else you want us to consider? (optional)
-        </label>
+      <FieldBlock
+        title="Anything else you want us to consider? (optional)"
+        description="Examples: childcare, accessibility, missions, music, teaching style, small groups."
+      >
         <Textarea
-          placeholder="Childcare needs, accessibility, missions, music style, etc."
+          placeholder="Tell us what matters to you…"
           value={additionalInfo}
           onChange={(e) => setAdditionalInfo(e.target.value)}
+          className="min-h-[110px]"
         />
-      </div>
+      </FieldBlock>
 
-      <Button
-        onClick={handleSubmit}
-        disabled={isSearching || !size || !location}
-        className="w-full"
-      >
-        {isSearching ? "Finding churches…" : "Find my match"}
-      </Button>
+      <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitDisabled}
+          className="w-full"
+        >
+          {isSearching ? "Finding your match…" : "Find my match"}
+        </Button>
+        <div className="mt-2 text-center text-xs text-muted-foreground">
+          We’ll suggest one best match and two runner-ups.
+        </div>
+      </div>
     </div>
   );
 }
