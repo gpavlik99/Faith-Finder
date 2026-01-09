@@ -12,6 +12,7 @@ const questionChips = [
   "Worship style",
   "Location & distance",
   "Priorities",
+  "Anything else?",
 ];
 
 const previewCards = [
@@ -168,7 +169,9 @@ export default function Index() {
                     "Do you already have a denomination in mind?",
                     "What size church feels most comfortable?",
                     "What worship style are you looking for?",
-                    "How far are you willing to travel?",
+                    "Where do you want to search, and how far will you travel?",
+                    "What are your top priorities?",
+                    "Anything else we should consider?",
                   ].map((q) => (
                     <li key={q} className="flex items-start gap-2">
                       <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/15">
@@ -182,7 +185,7 @@ export default function Index() {
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <Link to="/match">
                     <Button className="bg-gradient-spiritual hover:opacity-95">
-                      Answer 5 questions to get started
+                      Answer 6 questions to get started
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Sparkles, TriangleAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { DENOMINATIONS, SIZES_OPTIONAL, LOCATIONS } from "@/lib/options";
+import {
+  DENOMINATIONS,
+  SIZES_OPTIONAL,
+  LOCATIONS,
+  WORSHIP_STYLES,
+  DISTANCE_OPTIONS_MILES,
+  PRIORITY_OPTIONS,
+} from "@/lib/options";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import type { MatchResults } from "@/types/match";
 
@@ -37,7 +45,10 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
     settings.defaultDenomination ?? "No preference / Not sure"
   );
   const [size, setSize] = useState<string>(settings.defaultSize ?? "");
+  const [worshipStyle, setWorshipStyle] = useState<string>("No preference / Not sure");
   const [location, setLocation] = useState<string>(settings.defaultLocation ?? "State College");
+  const [maxDistanceMiles, setMaxDistanceMiles] = useState<string>("");
+  const [priorities, setPriorities] = useState<string[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +75,17 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
       }
 
       // 2) Call the Edge Function that asks the AI for a match
+      const formattedPriorities = priorities.length ? priorities.join(", ") : "";
+      const combinedAdditionalInfoParts = [
+        additionalInfo.trim() ? additionalInfo.trim() : "",
+        worshipStyle && worshipStyle !== "No preference / Not sure"
+          ? `Worship style: ${worshipStyle}`
+          : "",
+        maxDistanceMiles ? `Max distance: ${maxDistanceMiles} miles` : "",
+        formattedPriorities ? `Priorities: ${formattedPriorities}` : "",
+      ].filter(Boolean);
+      const combinedAdditionalInfo = combinedAdditionalInfoParts.join("\n");
+
       const { data: aiData, error: fnError } = await supabase.functions.invoke<AiMatchResponse>(
         "match-church",
         {
@@ -71,7 +93,10 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
             denomination: denomination === "No preference / Not sure" ? "" : denomination,
             size,
             location,
-            additionalInfo: additionalInfo.trim() ? additionalInfo.trim() : "",
+            worshipStyle: worshipStyle === "No preference / Not sure" ? "" : worshipStyle,
+            maxDistanceMiles,
+            priorities,
+            additionalInfo: combinedAdditionalInfo,
             churches,
           },
         }
@@ -159,9 +184,9 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
         ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Denomination</Label>
+              <Label>Denomination (optional)</Label>
               <Select value={denomination} onValueChange={setDenomination}>
                 <SelectTrigger>
                   <SelectValue placeholder="No preference / Not sure" />
@@ -199,6 +224,22 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
             </div>
 
             <div className="space-y-2">
+              <Label>Worship style</Label>
+              <Select value={worshipStyle} onValueChange={setWorshipStyle}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No preference / Not sure" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORSHIP_STYLES.map((w) => (
+                    <SelectItem key={w} value={w}>
+                      {w}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Location</Label>
               <Select value={location} onValueChange={setLocation}>
                 <SelectTrigger>
@@ -212,6 +253,55 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Distance (optional)</Label>
+              <Select
+                value={maxDistanceMiles === "" ? NO_PREFERENCE : maxDistanceMiles}
+                onValueChange={(v) => setMaxDistanceMiles(v === NO_PREFERENCE ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="No preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DISTANCE_OPTIONS_MILES.map((d) => {
+                    const v = d.value === "" ? NO_PREFERENCE : d.value;
+                    return (
+                      <SelectItem key={v} value={v}>
+                        {d.label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                This helps us prefer closer matches when we can.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Priorities (optional)</Label>
+            <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/10 p-4 sm:grid-cols-2">
+              {PRIORITY_OPTIONS.map((p) => {
+                const checked = priorities.includes(p);
+                return (
+                  <label key={p} className="flex cursor-pointer items-start gap-3 text-sm">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(next) => {
+                        const isChecked = Boolean(next);
+                        setPriorities((prev) =>
+                          isChecked ? Array.from(new Set([...prev, p])) : prev.filter((x) => x !== p)
+                        );
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span className="leading-snug">{p}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
