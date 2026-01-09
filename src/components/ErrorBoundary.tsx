@@ -41,7 +41,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             <pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{this.state.message}</pre>
           </div>
           <p style={{ marginTop: 12, fontSize: 12, opacity: 0.8 }}>
-            Tip: Check Vercel Environment Variables for <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
+            Tip: Check Vercel Environment Variables for <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.
           </p>
         </div>
       );

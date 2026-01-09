@@ -82,16 +82,22 @@ export default function Settings() {
 
                 <div className="space-y-2">
                   <Label>Default church size</Label>
-                  <Select value={settings.defaultSize} onValueChange={(v) => update({ defaultSize: v })}>
+                  <Select
+                    value={settings.defaultSize === "" ? "__no_preference__" : settings.defaultSize}
+                    onValueChange={(v) => update({ defaultSize: v === "__no_preference__" ? "" : v })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="No preference" />
                     </SelectTrigger>
                     <SelectContent>
-                      {SIZES_OPTIONAL.map((s) => (
-                        <SelectItem key={s.value || "any"} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
+                      {SIZES_OPTIONAL.map((s) => {
+                        const value = s.value === "" ? "__no_preference__" : s.value;
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {s.label}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
