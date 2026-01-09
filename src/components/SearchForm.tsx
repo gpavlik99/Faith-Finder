@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  CHURCH_SIZES,
   WORSHIP_STYLES,
   DISTANCE_OPTIONS_MILES,
   PRIORITY_OPTIONS,
@@ -95,12 +94,27 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NO_PREFERENCE_VALUE}>No preference</SelectItem>
+
+            {/* Common Christian traditions */}
+            <SelectItem value="Baptist">Baptist</SelectItem>
             <SelectItem value="Catholic">Catholic</SelectItem>
-            <SelectItem value="Protestant">Protestant</SelectItem>
+            <SelectItem value="Lutheran">Lutheran</SelectItem>
+            <SelectItem value="Methodist">Methodist</SelectItem>
+            <SelectItem value="Presbyterian">Presbyterian</SelectItem>
+            <SelectItem value="Episcopal/Anglican">Episcopal / Anglican</SelectItem>
+            <SelectItem value="Orthodox">Orthodox</SelectItem>
+            <SelectItem value="Pentecostal/Charismatic">
+              Pentecostal / Charismatic
+            </SelectItem>
             <SelectItem value="Non-denominational">
               Non-denominational
             </SelectItem>
-            <SelectItem value="Orthodox">Orthodox</SelectItem>
+
+            {/* Other common options in many areas */}
+            <SelectItem value="Church of Christ">Church of Christ</SelectItem>
+            <SelectItem value="Nazarene">Nazarene</SelectItem>
+            <SelectItem value="Adventist">Seventh-day Adventist</SelectItem>
+            <SelectItem value="Reformed">Reformed</SelectItem>
           </SelectContent>
         </Select>
       </FieldBlock>
@@ -139,10 +153,7 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
         </Select>
       </FieldBlock>
 
-      <FieldBlock
-        title="Location"
-        description="Where should we search?"
-      >
+      <FieldBlock title="Location" description="Where should we search?">
         <Select value={location} onValueChange={setLocation}>
           <SelectTrigger>
             <SelectValue placeholder="Select a location" />
