@@ -1,344 +1,226 @@
-import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Info, Loader2, Search } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-import { supabase } from "@/integrations/supabase/client";
-import { useUserSettings } from "@/hooks/useUserSettings";
-import { useToast } from "@/hooks/use-toast";
+import { ChurchIcon, Globe, Info, MapPin, Phone, Search } from "lucide-react";
 import type { MatchResults } from "@/types/match";
+import ChurchMap from "./ChurchMap";
 
-import { DENOMINATIONS, SIZES_REQUIRED, LOCATIONS } from "@/lib/options";
-
-interface SearchFormProps {
-  onSearch: (results: MatchResults) => void;
-  isSearching: boolean;
-  setIsSearching: (value: boolean) => void;
+interface SearchResultsProps {
+  results: MatchResults;
+  onNewSearch: () => void;
 }
 
-type FieldHelp = {
-  label: string;
-  description: string;
-  required?: boolean;
-};
+function WhyThisMatch({
+  reason,
+  align = "end",
+}: {
+  reason?: string;
+  align?: "start" | "center" | "end";
+}) {
+  if (!reason || !reason.trim()) return null;
 
-const HELP_TEXT: Record<
-  "denomination" | "size" | "location" | "additional",
-  FieldHelp
-> = {
-  denomination: {
-    label: "Denomination",
-    description:
-      "If you already identify with a tradition, this helps us prioritize churches that align with it. If you’re not sure, choose ‘No preference’ and we’ll focus on other signals.",
-  },
-  size: {
-    label: "Church size",
-    description:
-      "Size often shapes the overall feel of a community — from worship style to how easy it is to connect. This helps us suggest churches that match your comfort level.",
-    required: true,
-  },
-  location: {
-    label: "Location",
-    description:
-      "Location helps ensure recommendations are practical and easy to visit. We focus on churches in and around State College.",
-    required: true,
-  },
-  additional: {
-    label: "Additional information",
-    description:
-      "Share anything that matters to you right now (kids programs, accessibility needs, worship style, service opportunities, campus ministry, etc.).",
-  },
-};
-
-function FieldLabel({ help, htmlFor }: { help: FieldHelp; htmlFor?: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
-          {help.label}
-        </Label>
-        {help.required ? (
-          <span className="text-sm font-semibold text-destructive">*</span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Optional</span>
-        )}
-      </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Why this match"
+          title="Why this match"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" align={align} className="max-w-sm">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-foreground">
+            Why this match
+          </div>
+          <div className="text-sm text-muted-foreground">{reason}</div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`Why we ask about ${help.label}`}
-          >
-            <Info className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" align="end" className="max-w-sm">
-          <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">Why this helps</div>
-            <div className="text-sm text-muted-foreground">
-              {help.description}
+const SearchResults = ({ results, onNewSearch }: SearchResultsProps) => {
+  const { bestMatch, runnerUps } = results;
+
+  const ChurchCard = ({
+    church,
+    isBest = false,
+  }: {
+    church: any;
+    isBest?: boolean;
+  }) => (
+    <Card className={`border-border/60 shadow-card ${isBest ? "border-2 border-accent" : ""}`}>
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <ChurchIcon className={`h-5 w-5 ${isBest ? "text-accent" : "text-primary"}`} />
+              {isBest && (
+                <Badge className="bg-accent text-accent-foreground">
+                  Best Match
+                </Badge>
+              )}
+              <Badge variant="secondary">{church.denomination}</Badge>
+              <Badge variant="outline">{church.size}</Badge>
+            </div>
+
+            <CardTitle className="mt-2 text-2xl leading-tight">
+              {church.name}
+            </CardTitle>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {church.location}
+              </span>
+              {church.address ? (
+                <span className="text-muted-foreground/80">• {church.address}</span>
+              ) : null}
             </div>
           </div>
-        </TooltipContent>
-      </Tooltip>
-    </div>
+
+          <WhyThisMatch reason={church.reason} align="end" />
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-5">
+        {church.description ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {church.description}
+          </p>
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {typeof church.latitude === "number" && typeof church.longitude === "number" ? (
+            <ChurchMap
+              latitude={church.latitude}
+              longitude={church.longitude}
+              churchName={church.name}
+            />
+          ) : (
+            <div className="rounded-lg border border-border/60 bg-card/40 p-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                Map unavailable for this church
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4">
+            <div className="text-sm font-medium text-foreground">Contact</div>
+
+            {church.phone ? (
+              <a
+                href={`tel:${church.phone}`}
+                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <Phone className="h-4 w-4" />
+                {church.phone}
+              </a>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Phone className="h-4 w-4" />
+                Phone not listed
+              </div>
+            )}
+
+            {church.website ? (
+              <a
+                href={church.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <Globe className="h-4 w-4" />
+                Visit website
+              </a>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Globe className="h-4 w-4" />
+                Website not listed
+              </div>
+            )}
+
+            {church.reason ? (
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5" />
+                  Tap ⓘ for “Why this match”
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
-}
-
-export default function SearchForm({
-  onSearch,
-  isSearching,
-  setIsSearching,
-}: SearchFormProps) {
-  const { settings } = useUserSettings();
-
-  const [denomination, setDenomination] = useState(
-    settings.defaultDenomination || "No preference / Not sure"
-  );
-  const [size, setSize] = useState(settings.defaultSize || "");
-  const [location, setLocation] = useState(settings.defaultLocation || "");
-  const [additionalInfo, setAdditionalInfo] = useState("");
-  const [errorBanner, setErrorBanner] = useState<string | null>(null);
-
-  const { toast } = useToast();
-
-  // IDs help with accessibility + testing.
-  const denominationId = useMemo(
-    () => `denomination-${Math.random().toString(36).slice(2)}`,
-    []
-  );
-  const sizeId = useMemo(() => `size-${Math.random().toString(36).slice(2)}`, []);
-  const locationId = useMemo(
-    () => `location-${Math.random().toString(36).slice(2)}`,
-    []
-  );
-  const additionalId = useMemo(
-    () => `additional-${Math.random().toString(36).slice(2)}`,
-    []
-  );
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!size || !location) {
-      toast({
-        title: "Missing information",
-        description: "Please select a church size and location.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSearching(true);
-    setErrorBanner(null);
-
-    try {
-      const { data: churches, error: churchError } = await supabase
-        .from("churches")
-        .select("*");
-
-      if (churchError) throw churchError;
-
-      const { data: matchData, error: matchError } =
-        await supabase.functions.invoke("match-church", {
-          body: {
-            denomination,
-            size,
-            location,
-            additionalInfo,
-            churches,
-          },
-        });
-
-      if (matchError) throw matchError;
-
-      const bestMatch = churches?.find(
-        (c: any) => c.id === matchData.bestMatch.churchId
-      );
-
-      const runnerUps = matchData.runnerUps
-        .map((ru: any) => churches?.find((c: any) => c.id === ru.churchId))
-        .filter(Boolean);
-
-      if (!bestMatch) {
-        throw new Error("No match returned. Please try again.");
-      }
-
-      onSearch({
-        bestMatch: {
-          ...bestMatch,
-          reason: matchData.bestMatch.reason,
-        },
-        runnerUps: runnerUps.map((church: any, idx: number) => ({
-          ...church,
-          reason: matchData.runnerUps[idx]?.reason || "",
-        })),
-      });
-    } catch (error: any) {
-      console.error("Search error:", error);
-
-      setErrorBanner(
-        "We’re having trouble generating recommendations right now. Nothing was saved."
-      );
-
-      toast({
-        title: "Matcher temporarily unavailable",
-        description: "Please try again in a minute or browse churches instead.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   return (
     <TooltipProvider>
-      <Card className="border-border/60 shadow-card">
-        <CardHeader className="space-y-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <CardTitle className="text-xl">Find a church that fits you</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Answer a few short questions. Tap the ⓘ icons to see why we ask each one.
-              </p>
-            </div>
-            <Badge variant="secondary" className="shrink-0">
-              Step 1 of 1
-            </Badge>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground">
+              Your recommendations
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Each card includes a ⓘ icon that explains why it was recommended.
+            </p>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-6">
-          {errorBanner && (
-            <Alert variant="destructive">
-              <AlertTitle>Something went wrong</AlertTitle>
-              <AlertDescription>
-                <p className="text-sm">{errorBanner}</p>
-                <div className="mt-3 flex gap-2">
-                  <Link to="/churches">
-                    <Button variant="outline" size="sm">
-                      Browse churches
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setErrorBanner(null)}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onNewSearch} size="sm" className="h-9">
+              <Search className="mr-2 h-4 w-4" />
+              New search
+            </Button>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="rounded-xl border border-border/60 bg-card/40 p-5">
+            <Link to="/churches">
+              <Button variant="outline" size="sm" className="h-9">
+                Browse all churches
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-accent">
+                🎯 Best match
+              </h3>
+              <WhyThisMatch reason={bestMatch.reason} />
+            </div>
+
+            <ChurchCard church={bestMatch} isBest />
+          </div>
+
+          {runnerUps?.length > 0 ? (
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">
+                Other great options
+              </h3>
               <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                  <FieldLabel help={HELP_TEXT.denomination} htmlFor={denominationId} />
-                  <Select value={denomination} onValueChange={setDenomination}>
-                    <SelectTrigger id={denominationId} className="h-11">
-                      <SelectValue placeholder="No preference / Not sure" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DENOMINATIONS.map((d) => (
-                        <SelectItem key={d} value={d}>
-                          {d}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <FieldLabel help={HELP_TEXT.size} htmlFor={sizeId} />
-                  <Select value={size} onValueChange={setSize}>
-                    <SelectTrigger id={sizeId} className="h-11">
-                      <SelectValue placeholder="Select church size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SIZES_REQUIRED.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <FieldLabel help={HELP_TEXT.location} htmlFor={locationId} />
-                  <Select value={location} onValueChange={setLocation}>
-                    <SelectTrigger id={locationId} className="h-11">
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOCATIONS.map((l) => (
-                        <SelectItem key={l} value={l}>
-                          {l}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <FieldLabel help={HELP_TEXT.additional} htmlFor={additionalId} />
-                  <Textarea
-                    id={additionalId}
-                    value={additionalInfo}
-                    onChange={(e) => setAdditionalInfo(e.target.value)}
-                    rows={4}
-                    className="resize-none"
-                    placeholder="Anything else you’d like us to consider?"
-                  />
-                </div>
+                {runnerUps.map((church, idx) => (
+                  <ChurchCard key={church.id ?? idx} church={church} />
+                ))}
               </div>
             </div>
-
-            <Button
-              type="submit"
-              disabled={isSearching}
-              size="lg"
-              className="w-full h-12"
-            >
-              {isSearching ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Finding matches…
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-5 w-5" />
-                  See recommendations
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          ) : null}
+        </div>
+      </div>
     </TooltipProvider>
   );
-}
+};
+
+export default SearchResults;

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogOut, Plus, Loader2, ChurchIcon } from "lucide-react";
 import ChurchList from "@/components/admin/ChurchList";
 import ChurchForm from "@/components/admin/ChurchForm";
+import AdminJobs from "@/components/admin/AdminJobs";
 import type { Database } from "@/integrations/supabase/types";
 
 type Church = Database['public']['Tables']['churches']['Row'];
