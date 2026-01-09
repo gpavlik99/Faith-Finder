@@ -1,6 +1,7 @@
 /**
  * Centralized option lists used across the app.
- * Keep these exports stable so components can import reliably.
+ * This file intentionally exports BOTH the new names and legacy aliases
+ * so older pages (like Settings.tsx) continue to build.
  */
 
 export type Option = {
@@ -15,8 +16,7 @@ export type Option = {
 export const NO_PREFERENCE_VALUE = "no-preference";
 
 /**
- * Denomination options (optional question in the form)
- * Keep this list modest to start; you can expand later.
+ * Denominations
  */
 export const DENOMINATION_OPTIONS: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
@@ -27,7 +27,12 @@ export const DENOMINATION_OPTIONS: Option[] = [
 ];
 
 /**
- * Church size options (required)
+ * LEGACY ALIAS (used by Settings.tsx)
+ */
+export const DENOMINATIONS: Option[] = DENOMINATION_OPTIONS;
+
+/**
+ * Church sizes
  */
 export const CHURCH_SIZES: Option[] = [
   { value: "small", label: "Small (tight-knit community)" },
@@ -36,8 +41,7 @@ export const CHURCH_SIZES: Option[] = [
 ];
 
 /**
- * Backwards compatibility: some older code may import SIZES_OPTIONAL.
- * Keep it exported, but DO NOT include value="" (Radix disallows it).
+ * Legacy optional sizes list (cannot include value="")
  */
 export const SIZES_OPTIONAL: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
@@ -45,7 +49,7 @@ export const SIZES_OPTIONAL: Option[] = [
 ];
 
 /**
- * Worship style options (optional)
+ * Worship styles
  */
 export const WORSHIP_STYLES: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
@@ -57,8 +61,8 @@ export const WORSHIP_STYLES: Option[] = [
 ];
 
 /**
- * Distance options in miles (optional)
- * Values are strings because Select values must be strings.
+ * Distance options (miles)
+ * Values must be strings for Select controls.
  */
 export const DISTANCE_OPTIONS_MILES: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
@@ -70,7 +74,7 @@ export const DISTANCE_OPTIONS_MILES: Option[] = [
 ];
 
 /**
- * Priorities (optional) - shown as selectable pills
+ * Priorities
  */
 export const PRIORITY_OPTIONS: Option[] = [
   { value: "kids", label: "Kids / Family" },
@@ -86,8 +90,7 @@ export const PRIORITY_OPTIONS: Option[] = [
 ];
 
 /**
- * Optional: common location labels for dropdowns (if you want to reuse).
- * Your SearchForm currently hardcodes locations, so this is here for future use.
+ * Locations
  */
 export const LOCATION_OPTIONS: Option[] = [
   { value: "Centre County", label: "Centre County, PA" },
@@ -96,4 +99,9 @@ export const LOCATION_OPTIONS: Option[] = [
   { value: "Boalsburg", label: "Boalsburg, PA" },
   { value: "Penns Valley", label: "Penns Valley, PA" },
 ];
+
+/**
+ * LEGACY ALIAS (used by Settings.tsx)
+ */
+export const LOCATIONS: Option[] = LOCATION_OPTIONS;
 
