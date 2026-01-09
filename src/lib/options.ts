@@ -1,56 +1,26 @@
-/**
- * Centralized option lists used across the app.
- * This file intentionally exports BOTH the new names and legacy aliases
- * so older pages (like Settings.tsx) continue to build.
- */
+export type Option = { value: string; label: string };
 
-export type Option = {
-  value: string;
-  label: string;
-};
-
-/**
- * IMPORTANT: Radix/shadcn SelectItem cannot use value="".
- * Use this token for "No preference" / "clear" selections in Select controls.
- */
 export const NO_PREFERENCE_VALUE = "no-preference";
 
-/**
- * Denominations
- */
+/** Legacy + current exports (kept for compatibility) */
 export const DENOMINATION_OPTIONS: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
+  { value: "Baptist", label: "Baptist" },
   { value: "Catholic", label: "Catholic" },
-  { value: "Protestant", label: "Protestant" },
-  { value: "Non-denominational", label: "Non-denominational" },
+  { value: "Lutheran", label: "Lutheran" },
+  { value: "Methodist", label: "Methodist" },
+  { value: "Presbyterian", label: "Presbyterian" },
+  { value: "Episcopal/Anglican", label: "Episcopal / Anglican" },
   { value: "Orthodox", label: "Orthodox" },
+  { value: "Pentecostal/Charismatic", label: "Pentecostal / Charismatic" },
+  { value: "Non-denominational", label: "Non-denominational" },
+  { value: "Church of Christ", label: "Church of Christ" },
+  { value: "Nazarene", label: "Nazarene" },
+  { value: "Adventist", label: "Seventh-day Adventist" },
+  { value: "Reformed", label: "Reformed" },
 ];
-
-/**
- * LEGACY ALIAS (used by Settings.tsx)
- */
 export const DENOMINATIONS: Option[] = DENOMINATION_OPTIONS;
 
-/**
- * Church sizes
- */
-export const CHURCH_SIZES: Option[] = [
-  { value: "small", label: "Small (tight-knit community)" },
-  { value: "medium", label: "Medium (balanced size)" },
-  { value: "large", label: "Large (many programs & groups)" },
-];
-
-/**
- * Legacy optional sizes list (cannot include value="")
- */
-export const SIZES_OPTIONAL: Option[] = [
-  { value: NO_PREFERENCE_VALUE, label: "No preference" },
-  ...CHURCH_SIZES,
-];
-
-/**
- * Worship styles
- */
 export const WORSHIP_STYLES: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
   { value: "traditional", label: "Traditional (hymns / liturgy)" },
@@ -60,10 +30,6 @@ export const WORSHIP_STYLES: Option[] = [
   { value: "quiet", label: "Quiet / contemplative" },
 ];
 
-/**
- * Distance options (miles)
- * Values must be strings for Select controls.
- */
 export const DISTANCE_OPTIONS_MILES: Option[] = [
   { value: NO_PREFERENCE_VALUE, label: "No preference" },
   { value: "5", label: "Within 5 miles" },
@@ -73,9 +39,6 @@ export const DISTANCE_OPTIONS_MILES: Option[] = [
   { value: "50", label: "Within 50 miles" },
 ];
 
-/**
- * Priorities
- */
 export const PRIORITY_OPTIONS: Option[] = [
   { value: "kids", label: "Kids / Family" },
   { value: "youth", label: "Youth / Teens" },
@@ -89,9 +52,7 @@ export const PRIORITY_OPTIONS: Option[] = [
   { value: "quiet", label: "Quiet / Reflective" },
 ];
 
-/**
- * Locations
- */
+/** Legacy exports used in Settings.tsx */
 export const LOCATION_OPTIONS: Option[] = [
   { value: "Centre County", label: "Centre County, PA" },
   { value: "State College", label: "State College, PA" },
@@ -99,9 +60,15 @@ export const LOCATION_OPTIONS: Option[] = [
   { value: "Boalsburg", label: "Boalsburg, PA" },
   { value: "Penns Valley", label: "Penns Valley, PA" },
 ];
-
-/**
- * LEGACY ALIAS (used by Settings.tsx)
- */
 export const LOCATIONS: Option[] = LOCATION_OPTIONS;
 
+/** Legacy size options used by Settings.tsx (no empty string values) */
+export const CHURCH_SIZES: Option[] = [
+  { value: "small", label: "Small (1–100 people)" },
+  { value: "medium", label: "Medium (101–500 people)" },
+  { value: "large", label: "Large (500+ people)" },
+];
+export const SIZES_OPTIONAL: Option[] = [
+  { value: NO_PREFERENCE_VALUE, label: "No preference" },
+  ...CHURCH_SIZES,
+];
