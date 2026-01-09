@@ -1,226 +1,240 @@
-import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ChurchIcon, Globe, Info, MapPin, Phone, Search } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Sparkles, TriangleAlert } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { DENOMINATIONS, SIZES_OPTIONAL, LOCATIONS } from "@/lib/options";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import type { MatchResults } from "@/types/match";
-import ChurchMap from "./ChurchMap";
 
-interface SearchResultsProps {
-  results: MatchResults;
-  onNewSearch: () => void;
-}
+type Props = {
+  onSearch: (results: MatchResults) => void;
+  isSearching: boolean;
+  setIsSearching: (next: boolean) => void;
+};
 
-function WhyThisMatch({
-  reason,
-  align = "end",
-}: {
-  reason?: string;
-  align?: "start" | "center" | "end";
-}) {
-  if (!reason || !reason.trim()) return null;
+type AiMatchResponse = {
+  bestMatch: { churchId: string; reason?: string };
+  runnerUps: Array<{ churchId: string; reason?: string }>;
+};
+
+const NO_PREFERENCE = "__no_preference__";
+
+export default function SearchForm({ onSearch, isSearching, setIsSearching }: Props) {
+  const { settings } = useUserSettings();
+
+  const [denomination, setDenomination] = useState<string>(
+    settings.defaultDenomination ?? "No preference / Not sure"
+  );
+  const [size, setSize] = useState<string>(settings.defaultSize ?? "");
+  const [location, setLocation] = useState<string>(settings.defaultLocation ?? "State College");
+  const [additionalInfo, setAdditionalInfo] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+
+  const sizeSelectValue = useMemo(() => (size === "" ? NO_PREFERENCE : size), [size]);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsSearching(true);
+
+    try {
+      // 1) Load churches from Supabase
+      const { data: churches, error: churchesError } = await supabase
+        .from("churches")
+        .select("*");
+
+      if (churchesError) {
+        throw new Error(churchesError.message || "Failed to load churches");
+      }
+      if (!churches || churches.length === 0) {
+        throw new Error(
+          "No churches found in the database yet. Add some churches (Admin → Churches) and try again."
+        );
+      }
+
+      // 2) Call the Edge Function that asks the AI for a match
+      const { data: aiData, error: fnError } = await supabase.functions.invoke<AiMatchResponse>(
+        "match-church",
+        {
+          body: {
+            denomination: denomination === "No preference / Not sure" ? "" : denomination,
+            size,
+            location,
+            additionalInfo: additionalInfo.trim() ? additionalInfo.trim() : "",
+            churches,
+          },
+        }
+      );
+
+      if (fnError) {
+        // fnError can be vague; keep it user-friendly.
+        throw new Error(
+          fnError.message ||
+            "Matching service failed. Confirm the Supabase Edge Function 'match-church' is deployed and has OPENAI_API_KEY set."
+        );
+      }
+
+      if (!aiData?.bestMatch?.churchId) {
+        throw new Error(
+          "The matcher returned an unexpected response. Try again, or check the Edge Function logs in Supabase."
+        );
+      }
+
+      // 3) Join AI picks back to full church rows
+      const byId = new Map(churches.map((c) => [c.id, c]));
+      const bestRow = byId.get(aiData.bestMatch.churchId);
+
+      if (!bestRow) {
+        throw new Error(
+          "The matcher selected a church that wasn't found in the loaded list. Please try again."
+        );
+      }
+
+      const runnerRows = (aiData.runnerUps ?? [])
+        .map((r) => {
+          const row = byId.get(r.churchId);
+          return row
+            ? {
+                ...row,
+                reason: r.reason,
+              }
+            : null;
+        })
+        .filter(Boolean) as any[];
+
+      const results: MatchResults = {
+        bestMatch: {
+          ...bestRow,
+          // Normalize nullable fields to keep UI stable
+          description: bestRow.description ?? "",
+          latitude: bestRow.latitude ?? undefined,
+          longitude: bestRow.longitude ?? undefined,
+          reason: aiData.bestMatch.reason,
+        } as any,
+        runnerUps: runnerRows.map((row) =>
+          ({
+            ...row,
+            description: row.description ?? "",
+            latitude: row.latitude ?? undefined,
+            longitude: row.longitude ?? undefined,
+          } as any)
+        ),
+      };
+
+      onSearch(results);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
+    } finally {
+      setIsSearching(false);
+    }
+  }
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Why this match"
-          title="Why this match"
-        >
-          <Info className="h-4 w-4" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top" align={align} className="max-w-sm">
-        <div className="space-y-1">
-          <div className="text-sm font-semibold text-foreground">
-            Why this match
-          </div>
-          <div className="text-sm text-muted-foreground">{reason}</div>
-        </div>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-const SearchResults = ({ results, onNewSearch }: SearchResultsProps) => {
-  const { bestMatch, runnerUps } = results;
-
-  const ChurchCard = ({
-    church,
-    isBest = false,
-  }: {
-    church: any;
-    isBest?: boolean;
-  }) => (
-    <Card className={`border-border/60 shadow-card ${isBest ? "border-2 border-accent" : ""}`}>
-      <CardHeader className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <ChurchIcon className={`h-5 w-5 ${isBest ? "text-accent" : "text-primary"}`} />
-              {isBest && (
-                <Badge className="bg-accent text-accent-foreground">
-                  Best Match
-                </Badge>
-              )}
-              <Badge variant="secondary">{church.denomination}</Badge>
-              <Badge variant="outline">{church.size}</Badge>
-            </div>
-
-            <CardTitle className="mt-2 text-2xl leading-tight">
-              {church.name}
-            </CardTitle>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {church.location}
-              </span>
-              {church.address ? (
-                <span className="text-muted-foreground/80">• {church.address}</span>
-              ) : null}
-            </div>
-          </div>
-
-          <WhyThisMatch reason={church.reason} align="end" />
-        </div>
+    <Card className="shadow-card border-border/50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-accent" />
+          Tell us what you’re looking for
+        </CardTitle>
       </CardHeader>
-
-      <CardContent className="space-y-5">
-        {church.description ? (
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {church.description}
-          </p>
+      <CardContent>
+        {error ? (
+          <Alert variant="destructive" className="mb-6">
+            <TriangleAlert className="h-4 w-4" />
+            <AlertTitle>Couldn’t run the match</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {typeof church.latitude === "number" && typeof church.longitude === "number" ? (
-            <ChurchMap
-              latitude={church.latitude}
-              longitude={church.longitude}
-              churchName={church.name}
-            />
-          ) : (
-            <div className="rounded-lg border border-border/60 bg-card/40 p-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                Map unavailable for this church
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Denomination</Label>
+              <Select value={denomination} onValueChange={setDenomination}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No preference / Not sure" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DENOMINATIONS.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          <div className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4">
-            <div className="text-sm font-medium text-foreground">Contact</div>
-
-            {church.phone ? (
-              <a
-                href={`tel:${church.phone}`}
-                className="flex items-center gap-2 text-sm text-primary hover:underline"
+            <div className="space-y-2">
+              <Label>Church size</Label>
+              <Select
+                value={sizeSelectValue}
+                onValueChange={(v) => setSize(v === NO_PREFERENCE ? "" : v)}
               >
-                <Phone className="h-4 w-4" />
-                {church.phone}
-              </a>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4" />
-                Phone not listed
-              </div>
-            )}
+                <SelectTrigger>
+                  <SelectValue placeholder="No preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIZES_OPTIONAL.map((s) => {
+                    const value = s.value === "" ? NO_PREFERENCE : s.value;
+                    return (
+                      <SelectItem key={value} value={value}>
+                        {s.label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
 
-            {church.website ? (
-              <a
-                href={church.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-primary hover:underline"
-              >
-                <Globe className="h-4 w-4" />
-                Visit website
-              </a>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Globe className="h-4 w-4" />
-                Website not listed
-              </div>
-            )}
-
-            {church.reason ? (
-              <div className="pt-2">
-                <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                  <Info className="h-3.5 w-3.5" />
-                  Tap ⓘ for “Why this match”
-                </div>
-              </div>
-            ) : null}
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <Select value={location} onValueChange={setLocation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="State College" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATIONS.map((l) => (
+                    <SelectItem key={l} value={l}>
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
+
+          <div className="space-y-2">
+            <Label>Anything else you want us to consider? (optional)</Label>
+            <Textarea
+              value={additionalInfo}
+              onChange={(e) => setAdditionalInfo(e.target.value)}
+              placeholder="Example: good kids program, contemporary music, small groups, wheelchair accessible…"
+              className="min-h-[110px]"
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isSearching}>
+            {isSearching ? "Finding your best match…" : "Find my church"}
+          </Button>
+
+          <p className="text-xs text-muted-foreground">
+            If matching fails in production, verify your Supabase Edge Function <code>match-church</code> is deployed
+            and has <code>OPENAI_API_KEY</code> configured in Supabase.
+          </p>
+        </form>
       </CardContent>
     </Card>
   );
-
-  return (
-    <TooltipProvider>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground">
-              Your recommendations
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Each card includes a ⓘ icon that explains why it was recommended.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={onNewSearch} size="sm" className="h-9">
-              <Search className="mr-2 h-4 w-4" />
-              New search
-            </Button>
-
-            <Link to="/churches">
-              <Button variant="outline" size="sm" className="h-9">
-                Browse all churches
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        <div className="space-y-8">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-accent">
-                🎯 Best match
-              </h3>
-              <WhyThisMatch reason={bestMatch.reason} />
-            </div>
-
-            <ChurchCard church={bestMatch} isBest />
-          </div>
-
-          {runnerUps?.length > 0 ? (
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-foreground">
-                Other great options
-              </h3>
-              <div className="grid gap-6 md:grid-cols-2">
-                {runnerUps.map((church, idx) => (
-                  <ChurchCard key={church.id ?? idx} church={church} />
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </TooltipProvider>
-  );
-};
-
-export default SearchResults;
+}
