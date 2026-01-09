@@ -8,12 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  WORSHIP_STYLES,
-  DISTANCE_OPTIONS_MILES,
-  PRIORITY_OPTIONS,
-  NO_PREFERENCE_VALUE,
-} from "@/lib/options";
+import * as Options from "@/lib/options";
 
 type Props = {
   onSearch: (params: any) => void;
@@ -41,11 +36,27 @@ function FieldBlock(props: {
 }
 
 export default function SearchForm({ onSearch, isSearching }: Props) {
-  const [denomination, setDenomination] = useState(NO_PREFERENCE_VALUE);
+  const NO_PREF =
+    (Options as any).NO_PREFERENCE_VALUE ?? "no-preference";
+
+  // Defensive fallbacks so the page never crashes if options are missing
+  const WORSHIP_STYLES = Array.isArray((Options as any).WORSHIP_STYLES)
+    ? (Options as any).WORSHIP_STYLES
+    : [];
+
+  const DISTANCE_OPTIONS_MILES = Array.isArray((Options as any).DISTANCE_OPTIONS_MILES)
+    ? (Options as any).DISTANCE_OPTIONS_MILES
+    : [];
+
+  const PRIORITY_OPTIONS = Array.isArray((Options as any).PRIORITY_OPTIONS)
+    ? (Options as any).PRIORITY_OPTIONS
+    : [];
+
+  const [denomination, setDenomination] = useState(NO_PREF);
   const [size, setSize] = useState("");
-  const [worshipStyle, setWorshipStyle] = useState(NO_PREFERENCE_VALUE);
+  const [worshipStyle, setWorshipStyle] = useState(NO_PREF);
   const [location, setLocation] = useState("Centre County");
-  const [distance, setDistance] = useState(NO_PREFERENCE_VALUE);
+  const [distance, setDistance] = useState(NO_PREF);
   const [priorities, setPriorities] = useState<string[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState("");
 
@@ -54,8 +65,9 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
     if (location === "Centre County") {
       setDistance("25");
     } else if (distance === "25") {
-      setDistance(NO_PREFERENCE_VALUE);
+      setDistance(NO_PREF);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
   const isSubmitDisabled = useMemo(() => {
@@ -72,11 +84,11 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
 
   const handleSubmit = () => {
     onSearch({
-      denomination: denomination === NO_PREFERENCE_VALUE ? "" : denomination,
+      denomination: denomination === NO_PREF ? "" : denomination,
       size,
-      worshipStyle: worshipStyle === NO_PREFERENCE_VALUE ? "" : worshipStyle,
+      worshipStyle: worshipStyle === NO_PREF ? "" : worshipStyle,
       location,
-      distance: distance === NO_PREFERENCE_VALUE ? "" : distance,
+      distance: distance === NO_PREF ? "" : distance,
       priorities,
       additionalInfo,
     });
@@ -93,9 +105,8 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             <SelectValue placeholder="No preference" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NO_PREFERENCE_VALUE}>No preference</SelectItem>
+            <SelectItem value={NO_PREF}>No preference</SelectItem>
 
-            {/* Common Christian traditions */}
             <SelectItem value="Baptist">Baptist</SelectItem>
             <SelectItem value="Catholic">Catholic</SelectItem>
             <SelectItem value="Lutheran">Lutheran</SelectItem>
@@ -106,11 +117,8 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             <SelectItem value="Pentecostal/Charismatic">
               Pentecostal / Charismatic
             </SelectItem>
-            <SelectItem value="Non-denominational">
-              Non-denominational
-            </SelectItem>
+            <SelectItem value="Non-denominational">Non-denominational</SelectItem>
 
-            {/* Other common options in many areas */}
             <SelectItem value="Church of Christ">Church of Christ</SelectItem>
             <SelectItem value="Nazarene">Nazarene</SelectItem>
             <SelectItem value="Adventist">Seventh-day Adventist</SelectItem>
@@ -144,11 +152,16 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             <SelectValue placeholder="No preference" />
           </SelectTrigger>
           <SelectContent>
-            {WORSHIP_STYLES.map((w) => (
-              <SelectItem key={w.value} value={w.value}>
-                {w.label}
-              </SelectItem>
-            ))}
+            {/* Defensive: if options are missing, still render a safe “No preference” */}
+            {WORSHIP_STYLES.length === 0 ? (
+              <SelectItem value={NO_PREF}>No preference</SelectItem>
+            ) : (
+              WORSHIP_STYLES.map((w: any) => (
+                <SelectItem key={w.value} value={w.value}>
+                  {w.label}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
       </FieldBlock>
@@ -183,11 +196,15 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             <SelectValue placeholder="No preference" />
           </SelectTrigger>
           <SelectContent>
-            {DISTANCE_OPTIONS_MILES.map((d) => (
-              <SelectItem key={d.value} value={d.value}>
-                {d.label}
-              </SelectItem>
-            ))}
+            {DISTANCE_OPTIONS_MILES.length === 0 ? (
+              <SelectItem value={NO_PREF}>No preference</SelectItem>
+            ) : (
+              DISTANCE_OPTIONS_MILES.map((d: any) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
 
@@ -204,25 +221,31 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
         description="Pick what matters most to you (you can choose multiple)."
       >
         <div className="flex flex-wrap gap-2">
-          {PRIORITY_OPTIONS.map((p) => {
-            const selected = priorities.includes(p.value);
-            return (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => togglePriority(p.value)}
-                className={[
-                  "rounded-full border px-3 py-1 text-sm transition",
-                  selected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted",
-                ].join(" ")}
-                aria-pressed={selected}
-              >
-                {p.label}
-              </button>
-            );
-          })}
+          {PRIORITY_OPTIONS.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              (Priorities options are unavailable right now.)
+            </div>
+          ) : (
+            PRIORITY_OPTIONS.map((p: any) => {
+              const selected = priorities.includes(p.value);
+              return (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => togglePriority(p.value)}
+                  className={[
+                    "rounded-full border px-3 py-1 text-sm transition",
+                    selected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted",
+                  ].join(" ")}
+                  aria-pressed={selected}
+                >
+                  {p.label}
+                </button>
+              );
+            })
+          )}
         </div>
       </FieldBlock>
 
@@ -253,3 +276,4 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
     </div>
   );
 }
+
