@@ -2,13 +2,40 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Try multiple variable names to find the right one
+const SUPABASE_URL = 
+  import.meta.env.VITE_SUPABASE_URL || 
+  import.meta.env.VITE_SUPABASE_PROJECT_URL ||
+  import.meta.env.SUPABASE_URL;
+
+const SUPABASE_KEY = 
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_KEY ||
+  import.meta.env.SUPABASE_KEY;
+
+// Debug: Log what we found (remove this after it works)
+console.log('Supabase URL:', SUPABASE_URL ? 'Found ✅' : 'Missing ❌');
+console.log('Supabase Key:', SUPABASE_KEY ? 'Found ✅' : 'Missing ❌');
+
+if (!SUPABASE_URL) {
+  console.error('❌ VITE_SUPABASE_URL is not set in Vercel Environment Variables');
+  throw new Error('Missing VITE_SUPABASE_URL environment variable');
+}
+
+if (!SUPABASE_KEY) {
+  console.error('❌ Supabase key is not set. Tried these variable names:');
+  console.error('  - VITE_SUPABASE_ANON_KEY');
+  console.error('  - VITE_SUPABASE_PUBLISHABLE_KEY');
+  console.error('  - VITE_SUPABASE_KEY');
+  console.error('Check Vercel → Settings → Environment Variables');
+  throw new Error('Missing Supabase key environment variable');
+}
 
 // Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// import { supabase } from "@/integrations/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
