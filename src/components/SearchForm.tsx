@@ -8,11 +8,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import * as Options from "@/lib/options";
+import { supabase } from "@/integrations/client";
 
 type Props = {
   onSearch: (params: any) => void;
   isSearching: boolean;
+  setIsSearching: (searching: boolean) => void;
 };
 
 function FieldBlock(props: {
@@ -35,11 +39,9 @@ function FieldBlock(props: {
   );
 }
 
-export default function SearchForm({ onSearch, isSearching }: Props) {
-  const NO_PREF =
-    (Options as any).NO_PREFERENCE_VALUE ?? "no-preference";
+export default function SearchForm({ onSearch, isSearching, setIsSearching }: Props) {
+  const NO_PREF = (Options as any).NO_PREFERENCE_VALUE ?? "no-preference";
 
-  // Defensive fallbacks so the page never crashes if options are missing
   const WORSHIP_STYLES = Array.isArray((Options as any).WORSHIP_STYLES)
     ? (Options as any).WORSHIP_STYLES
     : [];
@@ -59,16 +61,15 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
   const [distance, setDistance] = useState(NO_PREF);
   const [priorities, setPriorities] = useState<string[]>([]);
   const [additionalInfo, setAdditionalInfo] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  // Auto-set distance to 25 miles when Centre County is chosen
   useEffect(() => {
     if (location === "Centre County") {
       setDistance("25");
     } else if (distance === "25") {
       setDistance(NO_PREF);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
+  }, [location, distance]);
 
   const isSubmitDisabled = useMemo(() => {
     return isSearching || !size || !location;
@@ -78,24 +79,94 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
     setPriorities((prev) =>
       prev.includes(value)
         ? prev.filter((p) => p !== value)
-        : [...prev, value],
+        : [...prev, value]
     );
   };
 
-  const handleSubmit = () => {
-    onSearch({
-      denomination: denomination === NO_PREF ? "" : denomination,
-      size,
-      worshipStyle: worshipStyle === NO_PREF ? "" : worshipStyle,
-      location,
-      distance: distance === NO_PREF ? "" : distance,
-      priorities,
-      additionalInfo,
-    });
+  const handleSubmit = async () => {
+    setError(null);
+    setIsSearching(true);
+
+    try {
+      const { data: churches, error: churchError } = await supabase
+        .from('churches')
+        .select('*')
+        .ilike('location', `%${location}%`);
+
+      if (churchError) {
+        throw new Error('Failed to load churches: ' + churchError.message);
+      }
+
+      if (!churches || churches.length === 0) {
+        throw new Error(`No churches found for location "${location}". Try "Centre County" instead.`);
+      }
+
+      const { data: matchData, error: matchError } = await supabase.functions.invoke('match-church', {
+        body: {
+          denomination: denomination === NO_PREF ? "" : denomination,
+          size,
+          worshipStyle: worshipStyle === NO_PREF ? "" : worshipStyle,
+          location,
+          distance: distance === NO_PREF ? "" : distance,
+          priorities,
+          additionalInfo,
+          churches,
+        },
+      });
+
+      if (matchError) {
+        throw new Error(matchError.message || 'Failed to get church matches');
+      }
+
+      if (!matchData) {
+        throw new Error('No match data returned');
+      }
+
+      const bestMatchId = matchData.bestMatch?.churchId;
+      const runnerUpIds = matchData.runnerUps?.map((r: any) => r.churchId) || [];
+
+      if (!bestMatchId) {
+        throw new Error('Invalid response: missing bestMatch');
+      }
+
+      const bestMatchChurch = churches.find(c => c.id === bestMatchId);
+      const runnerUpChurches = runnerUpIds
+        .map((id: string) => churches.find(c => c.id === id))
+        .filter(Boolean);
+
+      if (!bestMatchChurch) {
+        throw new Error('Best match church not found in database');
+      }
+
+      const results = {
+        bestMatch: {
+          ...bestMatchChurch,
+          reason: matchData.bestMatch.reason || 'This church matches your preferences.',
+        },
+        runnerUps: runnerUpChurches.map((church: any, idx: number) => ({
+          ...church,
+          reason: matchData.runnerUps[idx]?.reason || 'This is a good alternative option.',
+        })),
+      };
+
+      onSearch(results);
+    } catch (err: any) {
+      console.error('Search error:', err);
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
     <div className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <FieldBlock
         title="Denomination (optional)"
         description="Choose a tradition if it matters to you."
@@ -106,7 +177,6 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NO_PREF}>No preference</SelectItem>
-
             <SelectItem value="Baptist">Baptist</SelectItem>
             <SelectItem value="Catholic">Catholic</SelectItem>
             <SelectItem value="Lutheran">Lutheran</SelectItem>
@@ -118,7 +188,6 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
               Pentecostal / Charismatic
             </SelectItem>
             <SelectItem value="Non-denominational">Non-denominational</SelectItem>
-
             <SelectItem value="Church of Christ">Church of Christ</SelectItem>
             <SelectItem value="Nazarene">Nazarene</SelectItem>
             <SelectItem value="Adventist">Seventh-day Adventist</SelectItem>
@@ -152,7 +221,6 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
             <SelectValue placeholder="No preference" />
           </SelectTrigger>
           <SelectContent>
-            {/* Defensive: if options are missing, still render a safe “No preference” */}
             {WORSHIP_STYLES.length === 0 ? (
               <SelectItem value={NO_PREF}>No preference</SelectItem>
             ) : (
@@ -182,7 +250,7 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
 
         {location === "Centre County" && (
           <div className="mt-2 text-sm text-muted-foreground">
-            We’ll search across all of Centre County.
+            We'll search across all of Centre County.
           </div>
         )}
       </FieldBlock>
@@ -267,13 +335,15 @@ export default function SearchForm({ onSearch, isSearching }: Props) {
           disabled={isSubmitDisabled}
           className="w-full"
         >
+          {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isSearching ? "Finding your match…" : "Find my match"}
         </Button>
         <div className="mt-2 text-center text-xs text-muted-foreground">
-          We’ll suggest one best match and two runner-ups.
+          We'll suggest one best match and two runner-ups.
         </div>
       </div>
     </div>
   );
 }
+
 
