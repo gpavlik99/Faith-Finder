@@ -1,85 +1,110 @@
-import { useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { NO_PREFERENCE_VALUE } from "@/lib/options";
 
-export type AppTheme = "system" | "light" | "dark";
+const STORAGE_KEY = "faith_finder_user_settings_v2";
 
 export type UserSettings = {
-  defaultLocation: string;
-  defaultSize: string;
-  defaultDenomination: string;
-  theme: AppTheme;
+  denomination: string;
+  size: string;
+  worshipStyle: string;
+  location: string;
+  distance: string;
+  priorities: string[];
+  additionalInfo: string;
 };
 
-const STORAGE_KEY = "FAITH_FINDER_SETTINGS_V1";
-
-export const USER_SETTINGS_DEFAULTS: UserSettings = {
-  defaultLocation: "State College",
-  defaultSize: "",
-  defaultDenomination: "No preference / Not sure",
-  theme: "system",
+const DEFAULT_SETTINGS: UserSettings = {
+  denomination: NO_PREFERENCE_VALUE,
+  size: "",
+  worshipStyle: NO_PREFERENCE_VALUE,
+  location: "Centre County",
+  distance: NO_PREFERENCE_VALUE,
+  priorities: [],
+  additionalInfo: "",
 };
 
-function safeParse(raw: string | null): Partial<UserSettings> | null {
+function safeParse(raw: string | null): any | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return null;
-    return parsed as Partial<UserSettings>;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
 
-function safeGetItem(key: string): string | null {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return null;
-    return window.localStorage.getItem(key);
-  } catch {
-    // Some environments (privacy modes, blocked storage, etc.) can throw.
-    return null;
-  }
-}
+function coerceSettings(input: any): UserSettings {
+  const s = input ?? {};
 
-function safeSetItem(key: string, value: string) {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return;
-    window.localStorage.setItem(key, value);
-  } catch {
-    // ignore
-  }
-}
-
-export function getStoredUserSettings(): UserSettings {
-  const parsed = safeParse(safeGetItem(STORAGE_KEY));
   return {
-    ...USER_SETTINGS_DEFAULTS,
-    ...(parsed ?? {}),
+    denomination:
+      typeof s.denomination === "string" && s.denomination.length > 0
+        ? s.denomination
+        : DEFAULT_SETTINGS.denomination,
+
+    size: typeof s.size === "string" ? s.size : DEFAULT_SETTINGS.size,
+
+    worshipStyle:
+      typeof s.worshipStyle === "string" && s.worshipStyle.length > 0
+        ? s.worshipStyle
+        : DEFAULT_SETTINGS.worshipStyle,
+
+    location:
+      typeof s.location === "string" && s.location.length > 0
+        ? s.location
+        : DEFAULT_SETTINGS.location,
+
+    distance:
+      typeof s.distance === "string" && s.distance.length > 0
+        ? s.distance
+        : DEFAULT_SETTINGS.distance,
+
+    priorities: Array.isArray(s.priorities)
+      ? s.priorities.filter((x: any) => typeof x === "string")
+      : DEFAULT_SETTINGS.priorities,
+
+    additionalInfo:
+      typeof s.additionalInfo === "string" ? s.additionalInfo : DEFAULT_SETTINGS.additionalInfo,
   };
 }
 
-export function setStoredUserSettings(next: UserSettings) {
-  safeSetItem(STORAGE_KEY, JSON.stringify(next));
-}
-
 export function useUserSettings() {
-  const [settings, setSettings] = useState<UserSettings>(() => getStoredUserSettings());
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [loaded, setLoaded] = useState(false);
 
-  const update = useCallback((patch: Partial<UserSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      setStoredUserSettings(next);
-      return next;
-    });
+  useEffect(() => {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = safeParse(raw);
+    const coerced = coerceSettings(parsed);
+    setSettings(coerced);
+    setLoaded(true);
   }, []);
 
-  const reset = useCallback(() => {
-    setStoredUserSettings(USER_SETTINGS_DEFAULTS);
-    setSettings(USER_SETTINGS_DEFAULTS);
-  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  }, [loaded, settings]);
 
-  const api = useMemo(
-    () => ({ settings, update, reset }),
-    [settings, update, reset]
-  );
+  const apiSettings = useMemo(() => {
+    // When sending to the backend, convert "no-preference" to ""
+    return {
+      ...settings,
+      denomination: settings.denomination === NO_PREFERENCE_VALUE ? "" : settings.denomination,
+      worshipStyle: settings.worshipStyle === NO_PREFERENCE_VALUE ? "" : settings.worshipStyle,
+      distance: settings.distance === NO_PREFERENCE_VALUE ? "" : settings.distance,
+      priorities: Array.isArray(settings.priorities) ? settings.priorities : [],
+    };
+  }, [settings]);
 
-  return api;
+  const reset = () => {
+    setSettings(DEFAULT_SETTINGS);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  return {
+    settings,
+    setSettings,
+    apiSettings,
+    reset,
+    loaded,
+  };
 }
