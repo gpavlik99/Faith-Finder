@@ -57,20 +57,15 @@ console.log('About to create Supabase client...');
 console.log('URL (trimmed):', urlStr);
 console.log('Key (trimmed first 10):', keyStr.substring(0, 10) + '...');
 
-try {
-  // Import the supabase client like this:
-  // import { supabase } from "@/integrations/client";
+// Import the supabase client like this:
+// import { supabase } from "@/integrations/client";
 
-  export const supabase = createClient<Database>(urlStr, keyStr, {
-    auth: {
-      storage: localStorage,
-      persistSession: true,
-      autoRefreshToken: true,
-    }
-  });
-  
-  console.log('✅ Supabase client created successfully!');
-} catch (error) {
-  console.error('❌ Failed to create Supabase client:', error);
-  throw error;
-}
+export const supabase = createClient<Database>(urlStr, keyStr, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
+
+console.log('✅ Supabase client created successfully!');
