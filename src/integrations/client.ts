@@ -14,9 +14,26 @@ const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_KEY ||
   import.meta.env.SUPABASE_KEY;
 
-// Debug: Log what we found (remove this after it works)
+// Debug: Show what we found
+console.log('=== SUPABASE CLIENT DEBUG ===');
 console.log('Supabase URL:', SUPABASE_URL ? 'Found ✅' : 'Missing ❌');
 console.log('Supabase Key:', SUPABASE_KEY ? 'Found ✅' : 'Missing ❌');
+
+// Show the actual values (first/last few characters only for security)
+if (SUPABASE_URL) {
+  console.log('URL value:', SUPABASE_URL);
+  console.log('URL type:', typeof SUPABASE_URL);
+  console.log('URL length:', SUPABASE_URL.length);
+}
+
+if (SUPABASE_KEY) {
+  console.log('Key starts with:', SUPABASE_KEY.substring(0, 10) + '...');
+  console.log('Key ends with:', '...' + SUPABASE_KEY.substring(SUPABASE_KEY.length - 10));
+  console.log('Key type:', typeof SUPABASE_KEY);
+  console.log('Key length:', SUPABASE_KEY.length);
+}
+
+console.log('=== END DEBUG ===');
 
 if (!SUPABASE_URL) {
   console.error('❌ VITE_SUPABASE_URL is not set in Vercel Environment Variables');
@@ -32,13 +49,28 @@ if (!SUPABASE_KEY) {
   throw new Error('Missing Supabase key environment variable');
 }
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/client";
+// Additional validation
+const urlStr = String(SUPABASE_URL).trim();
+const keyStr = String(SUPABASE_KEY).trim();
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+console.log('About to create Supabase client...');
+console.log('URL (trimmed):', urlStr);
+console.log('Key (trimmed first 10):', keyStr.substring(0, 10) + '...');
+
+try {
+  // Import the supabase client like this:
+  // import { supabase } from "@/integrations/client";
+
+  export const supabase = createClient<Database>(urlStr, keyStr, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
+  
+  console.log('✅ Supabase client created successfully!');
+} catch (error) {
+  console.error('❌ Failed to create Supabase client:', error);
+  throw error;
+}
