@@ -345,5 +345,3 @@ export default function SearchForm({ onSearch, isSearching, setIsSearching }: Pr
     </div>
   );
 }
-
-
