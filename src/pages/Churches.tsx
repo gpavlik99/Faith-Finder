@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/client";
 
 type ChurchRow = {
   id: string;
@@ -50,7 +50,7 @@ export default function Churches() {
             <div>
               <h1 className="text-4xl font-bold text-foreground">Browse churches</h1>
               <p className="mt-2 max-w-2xl text-muted-foreground">
-                Explore churches in and around State College. If you’d like recommendations tailored to you,
+                Explore churches in and around State College. If you'd like recommendations tailored to you,
                 use the guided match.
               </p>
             </div>
